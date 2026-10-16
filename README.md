@@ -7,13 +7,15 @@ Base pequeña y funcional para resolver un ejercicio técnico con **Laravel 12**
 1. [Qué trae](#qué-trae)
 2. [Requisitos](#requisitos)
 3. [Instalación de herramientas en Windows](#instalación-de-herramientas-en-windows)
-4. [Instalación de PostgreSQL local](#instalación-de-postgresql-local)
-5. [Clonar e instalar el proyecto](#clonar-e-instalar-el-proyecto)
-6. [Iniciar y detener](#iniciar-y-detener)
-7. [API CRUD de ejemplo](#api-crud-de-ejemplo)
-8. [Comandos cotidianos](#comandos-cotidianos)
-9. [Cómo ampliar el CRUD](#cómo-ampliar-el-crud)
-10. [Solución de problemas](#solución-de-problemas)
+4. [Instalación de Laravel y creación de proyectos](#instalación-de-laravel-y-creación-de-proyectos)
+5. [Instalación de PostgreSQL local](#instalación-de-postgresql-local)
+6. [Clonar e instalar el proyecto](#clonar-e-instalar-el-proyecto)
+7. [Iniciar y detener](#iniciar-y-detener)
+8. [API CRUD de ejemplo](#api-crud-de-ejemplo)
+9. [Comandos cotidianos](#comandos-cotidianos)
+10. [PHP Artisan: comandos útiles](#php-artisan-comandos-útiles)
+11. [Cómo ampliar el CRUD](#cómo-ampliar-el-crud)
+12. [Solución de problemas](#solución-de-problemas)
 
 ## Qué trae
 
@@ -58,7 +60,14 @@ En la salida de `php -m`, confirma que aparezca `pdo_pgsql`. En `php --ini`, mir
 
 ### 1. PHP
 
-Instala PHP 8.2+ (XAMPP/Laragon o una distribución oficial para Windows x64). Asegúrate de instalar el runtime de Visual C++ requerido por esa distribución.
+Instala PHP 8.2+ (XAMPP/Laragon o una distribución oficial para Windows x64). Asegúrate de instalar el runtime de Visual C++ requerido por esa distribución. Con winget puedes buscar e instalar PHP 8.5 así:
+
+```powershell
+winget search --id PHP.PHP
+winget install --id PHP.PHP.8.5 -e
+```
+
+Si usas XAMPP/Laragon, también puedes usar el PHP incluido: localiza su carpeta `php` y agrégala al PATH. Si tienes varias versiones, comprueba cuál se ejecuta con `where.exe php` y `php -v`.
 
 En el `php.ini` cargado, habilita/descomenta las extensiones necesarias, especialmente:
 
@@ -86,24 +95,63 @@ php -m | Select-String 'pdo_pgsql|pgsql|pdo_sqlite|sqlite3'
 
 ### 2. Composer
 
-Instala Composer desde [getcomposer.org/download](https://getcomposer.org/download/). Su instalador de Windows te permite seleccionar el `php.exe` que utilizará. Confirma:
+Descarga y ejecuta el instalador oficial [Composer-Setup.exe](https://getcomposer.org/Composer-Setup.exe). Selecciona el `php.exe` que instalarás/usarás. Cierra y abre PowerShell y confirma:
 
 ```powershell
 composer --version
 composer diagnose
 ```
 
+Composer instala las librerías PHP declaradas en `composer.json` y fija las versiones en `composer.lock`. Para esta plantilla no hace falta instalar globalmente `laravel/installer`; `composer install` descarga Laravel y sus dependencias locales en `vendor/`.
+
 ### 3. PostgreSQL
 
-Instala PostgreSQL desde [postgresql.org/download/windows](https://www.postgresql.org/download/windows/). En el asistente selecciona PostgreSQL Server y Command Line Tools; apunta la contraseña del usuario administrativo `postgres` que configures y el puerto (por defecto `5432`). Puedes instalar pgAdmin para administrar gráficamente las bases.
+Instala PostgreSQL desde [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) o con winget:
+
+```powershell
+winget search --id PostgreSQL.PostgreSQL
+winget install --id PostgreSQL.PostgreSQL.17 -e
+```
+
+También puedes elegir otra versión estable que aparezca en la búsqueda. En el instalador selecciona PostgreSQL Server y Command Line Tools; apunta la contraseña del usuario administrativo `postgres` que configures y el puerto (por defecto `5432`). Puedes instalar pgAdmin para administrar gráficamente las bases.
 
 Verifica que el servicio esté iniciado (en `services.msc`, normalmente `postgresql-x64-<versión>`) y que `psql --version` funcione. Agrega al PATH la carpeta `bin` de PostgreSQL si Windows no encuentra `psql.exe`.
 
 ### 4. Git, editor y Node opcional
 
-- Instala Git for Windows para clonar el repo.
+- Instala Git for Windows para clonar el repo (también: `winget install --id Git.Git -e`).
 - VS Code es un editor práctico, pero cualquier editor sirve.
-- Node.js LTS/npm solo hacen falta si vas a modificar y compilar `resources/css` o `resources/js`.
+- Node.js LTS/npm solo hacen falta si vas a modificar y compilar `resources/css` o `resources/js`. Instala Node LTS desde [nodejs.org](https://nodejs.org/); npm viene incluido.
+
+También puedes usar `winget install --id OpenJS.NodeJS.LTS -e`.
+
+```powershell
+node --version
+npm --version
+```
+
+Los paquetes de Vite/Tailwind ya están declarados en `package.json`. En este repo, `npm ci` instala versiones bloqueadas, `npm run dev` inicia Vite y `npm run build` compila assets. No instales Tailwind globalmente ni ejecutes `tailwindcss init`: la plantilla usa Tailwind 4 y su plugin Vite.
+
+Si agregas Tailwind a un Laravel limpio, instala `tailwindcss` y `@tailwindcss/vite` con npm, añade el plugin al `vite.config.js` e importa `@import 'tailwindcss';` en `resources/css/app.css`. Esta plantilla ya tiene esa integración lista.
+
+### Instalación de Laravel y creación de proyectos
+
+Para usar **este repositorio**, Composer instala Laravel localmente según `composer.lock`. Para crear otro proyecto desde cero puedes usar Composer:
+
+```powershell
+composer create-project laravel/laravel mi-proyecto
+cd mi-proyecto
+```
+
+O instala una vez el instalador global de Laravel:
+
+```powershell
+composer global require laravel/installer
+laravel --version
+laravel new mi-proyecto
+```
+
+Si Windows no reconoce `laravel`, agrega `%APPDATA%\Composer\vendor\bin` al PATH y abre una terminal nueva. `laravel new` pregunta opciones de starter kit, base de datos y autenticación; elige según el ejercicio. Laravel es el framework PHP y Composer administra sus dependencias.
 
 ## Instalación de PostgreSQL local
 
@@ -253,6 +301,71 @@ composer update                            # actualizar versiones; normalmente n
 ```
 
 `migrate:fresh` elimina todas las tablas y datos: úsalo solo en una base de desarrollo desechable. Nunca lo ejecutes sobre una base con datos que quieras conservar.
+
+## PHP Artisan: comandos útiles
+
+`php artisan` es la CLI que viene con Laravel. Ejecútala desde la raíz del proyecto, donde está el archivo `artisan`.
+
+### Descubrir y ejecutar
+
+```powershell
+php artisan list                         # lista todos los comandos disponibles
+php artisan help migrate                 # ayuda de un comando
+php artisan about                        # resumen de entorno, framework y paquetes
+php artisan --version                    # versión de Laravel
+php artisan route:list                   # inspeccionar rutas
+php artisan route:list --path=api        # filtrar rutas por URL
+php artisan route:list --name=posts      # filtrar por nombre de ruta
+```
+
+### Generar código
+
+```powershell
+php artisan make:model Product -m       # modelo y migración
+php artisan make:model Product -mcr     # modelo, migración, controlador resource
+php artisan make:controller ProductController --api
+php artisan make:controller ProductController --resource
+php artisan make:migration add_price_to_products_table
+php artisan make:request StoreProductRequest
+php artisan make:seeder ProductSeeder
+php artisan make:factory ProductFactory --model=Product
+php artisan make:test ProductApiTest
+php artisan make:test ProductRulesTest --unit
+```
+
+Opciones comunes: `--no-interaction` para evitar preguntas, `--force` para reemplazar archivos generados si el comando lo permite. Lee `php artisan make:model --help` o `php artisan help make:controller` para las opciones exactas.
+
+### Base de datos, caché y depuración
+
+```powershell
+php artisan migrate                    # aplicar migraciones pendientes
+php artisan migrate:status             # ver cuáles corrieron
+php artisan migrate:rollback           # revertir último lote
+php artisan migrate:rollback --step=1  # revertir un paso
+php artisan migrate:fresh              # BORRA todas las tablas; solo base desechable
+php artisan db:seed                    # ejecutar DatabaseSeeder
+php artisan db:show                    # información de conexión/esquema
+php artisan config:show database       # inspeccionar configuración de DB
+php artisan config:clear               # limpiar caché de configuración
+php artisan cache:clear                # vaciar caché de aplicación
+php artisan view:clear                 # limpiar vistas compiladas
+php artisan optimize:clear             # limpiar cachés de Laravel
+php artisan test --compact             # ejecutar PHPUnit en formato corto
+vendor/bin/pint                        # formatear código PHP
+```
+
+### Servidores y utilidades locales
+
+```powershell
+php artisan serve                       # servidor local, normalmente puerto 8000
+php artisan serve --host=127.0.0.1 --port=8080
+php artisan tinker                      # consola interactiva de Laravel
+php artisan tinker --execute='App\Models\Post::count();'
+php artisan storage:link                # enlace public/storage si se usa storage público
+php artisan route:clear                 # borrar caché de rutas
+```
+
+Para detener un comando de servidor o Tinker: `Ctrl+C` o `exit` en Tinker. Para explorar cualquier otro comando, `php artisan list` y `php artisan help <comando>` son la referencia más directa.
 
 ## Cómo ampliar el CRUD
 
