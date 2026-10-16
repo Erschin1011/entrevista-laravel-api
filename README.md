@@ -1,48 +1,70 @@
-# Plantilla de entrevista: Laravel MVC + API + PostgreSQL
+# Laravel MVC + API — plantilla para entrevista técnica
 
-Base pequeña y funcional para resolver un ejercicio técnico con **Laravel 12**, **PHP 8.2+**, **Eloquent ORM**, migraciones, una vista **Blade**, endpoints REST y **PostgreSQL local**. Incluye validación, manejo de errores JSON, pruebas, y un script de instalación para Windows PowerShell.
+Starter pequeño y ejecutable con **Laravel 12**, **PHP 8.2+**, **Eloquent ORM**, **Blade**, **PostgreSQL local** y una API REST CRUD. Incluye pruebas con SQLite en memoria, de modo que la suite no depende de que PostgreSQL esté iniciado.
+
+> La plantilla tiene un ejemplo `Post` (título y contenido) para demostrar el recorrido completo. Úsalo como base: cambia los campos y nombres al dominio que indique el ejercicio.
 
 ## Índice
 
-1. [Qué trae](#qué-trae)
+1. [Qué incluye y cómo se conectan las piezas](#qué-incluye-y-cómo-se-conectan-las-piezas)
 2. [Requisitos](#requisitos)
-3. [Instalación de herramientas en Windows](#instalación-de-herramientas-en-windows)
-4. [Instalación de Laravel y creación de proyectos](#instalación-de-laravel-y-creación-de-proyectos)
-5. [Instalación de PostgreSQL local](#instalación-de-postgresql-local)
-6. [Clonar e instalar el proyecto](#clonar-e-instalar-el-proyecto)
-7. [Iniciar y detener](#iniciar-y-detener)
-8. [API CRUD de ejemplo](#api-crud-de-ejemplo)
-9. [Comandos cotidianos](#comandos-cotidianos)
-10. [PHP Artisan: comandos útiles](#php-artisan-comandos-útiles)
-11. [Cómo ampliar el CRUD](#cómo-ampliar-el-crud)
+3. [Instalación en Windows](#instalación-en-windows)
+4. [Instalar PostgreSQL y crear la base](#instalar-postgresql-y-crear-la-base)
+5. [Clonar y preparar el proyecto](#clonar-y-preparar-el-proyecto)
+6. [Iniciar la aplicación](#iniciar-la-aplicación)
+7. [Probar la interfaz MVC](#probar-la-interfaz-mvc)
+8. [Probar la API REST](#probar-la-api-rest)
+9. [Ejecutar pruebas](#ejecutar-pruebas)
+10. [Extender el ejemplo a otro CRUD](#extender-el-ejemplo-a-otro-crud)
+11. [Comandos Artisan de uso frecuente](#comandos-artisan-de-uso-frecuente)
 12. [Solución de problemas](#solución-de-problemas)
 
-## Qué trae
+## Qué incluye y cómo se conectan las piezas
 
-- `GET /api/posts`: leer/listar posts paginados.
-- `POST /api/posts`: agregar un post validado.
-- `GET /api/posts/{post}`: leer un post por ID (route model binding).
-- `PUT/PATCH /api/posts/{post}`: editar un post.
-- `DELETE /api/posts/{post}`: eliminar un post.
-- Errores de validación en JSON con HTTP 422.
-- `PostResource` define explícitamente la representación JSON.
-- PostgreSQL como conexión predeterminada para el proyecto.
-- Vista Blade en `/` que muestra los posts.
-- Pruebas automatizadas que usan SQLite en memoria; **no necesitan tener PostgreSQL activo**.
+El repositorio ofrece:
 
-Archivos centrales: `routes/api.php`, `routes/web.php`, `app/Http/Controllers/PostController.php`, `app/Http/Resources/PostResource.php`, `app/Models/Post.php`, `database/migrations/` y `resources/views/`.
+- `GET /api/posts`: lista posts, paginados de 10 en 10.
+- `POST /api/posts`: valida y crea un post.
+- `GET /api/posts/{post}`: consulta uno por ID.
+- `PUT/PATCH /api/posts/{post}`: reemplaza o edita parcialmente.
+- `DELETE /api/posts/{post}`: elimina un post.
+- `GET /`: vista Blade sencilla que muestra los registros guardados.
+- `PostResource`: define qué campos se exponen como JSON.
+- `database/migrations/*create_posts_table.php`: esquema de la tabla.
+- PostgreSQL como base local de la aplicación; SQLite en memoria para pruebas.
+
+El flujo normal es:
+
+```text
+HTTP request -> routes/api.php -> PostController -> validación
+             -> modelo Post (Eloquent) -> PostgreSQL -> PostResource -> JSON response
+```
+
+En MVC, la ruta web `/` consulta el modelo y entrega datos a la vista Blade. La API no renderiza HTML: devuelve JSON para que Postman, una app Vue u otro cliente lo consuma.
+
+Archivos principales:
+
+| Archivo | Responsabilidad |
+|---|---|
+| `routes/api.php` | Declara endpoints REST |
+| `routes/web.php` | Declara rutas para páginas Blade |
+| `app/Http/Controllers/PostController.php` | Coordina validación, Eloquent y respuesta |
+| `app/Models/Post.php` | Representa la tabla `posts` y define `$fillable` |
+| `app/Http/Resources/PostResource.php` | Da forma estable al JSON de salida |
+| `database/migrations/*create_posts_table.php` | Crea la tabla y sus columnas |
+| `resources/views/welcome.blade.php` | Página inicial HTML/MVC |
+| `.env` | Configuración local; no se sube a GitHub |
 
 ## Requisitos
 
 - Windows 10/11, macOS o Linux.
-- PHP **8.2 o superior**, con estas extensiones habituales: `curl`, `fileinfo`, `mbstring`, `openssl`, `pdo`, `pdo_pgsql`, `tokenizer`, `xml`, `ctype` y `json`.
-- Composer 2.
-- PostgreSQL **14 o superior**, instalado como servicio local y escuchando por TCP.
-- Cliente `psql` (se instala con PostgreSQL; opcional si se usa pgAdmin).
+- PHP **8.2 o superior** y Composer 2.
+- PostgreSQL **14 o superior**, ejecutándose localmente.
+- Extensiones PHP `pdo_pgsql` para usar PostgreSQL y `pdo_sqlite`/`sqlite3` para pruebas.
 - Git.
-- Node.js 20+ solo si se van a compilar assets; este starter no requiere frontend Node para la funcionalidad CRUD.
+- Node.js/npm son opcionales: solo se usan para compilar los assets de Vite; el CRUD de ejemplo no necesita un frontend JavaScript.
 
-Comprueba lo instalado en PowerShell:
+Comprueba en PowerShell:
 
 ```powershell
 php -v
@@ -55,22 +77,20 @@ node --version
 npm --version
 ```
 
-En la salida de `php -m`, confirma que aparezca `pdo_pgsql`. En `php --ini`, mira **Loaded Configuration File** para saber qué `php.ini` editar. Si el comando `php` no se reconoce, agrega la carpeta que contiene `php.exe` al PATH y abre una terminal nueva.
+`php --ini` indica cuál es el `php.ini` activo. En `php -m` deben aparecer `pdo_pgsql` y `pdo_sqlite`. Si tienes XAMPP, comprueba que PowerShell realmente use su PHP con `where.exe php`.
 
-## Instalación de herramientas en Windows
+## Instalación en Windows
 
-### 1. PHP
+### PHP
 
-Instala PHP 8.2+ (XAMPP/Laragon o una distribución oficial para Windows x64). Asegúrate de instalar el runtime de Visual C++ requerido por esa distribución. Con winget puedes buscar e instalar PHP 8.5 así:
+Puedes usar PHP 8.2+ de XAMPP/Laragon o instalar una versión para Windows x64. Con winget:
 
 ```powershell
 winget search --id PHP.PHP
 winget install --id PHP.PHP.8.5 -e
 ```
 
-Si usas XAMPP/Laragon, también puedes usar el PHP incluido: localiza su carpeta `php` y agrégala al PATH. Si tienes varias versiones, comprueba cuál se ejecuta con `where.exe php` y `php -v`.
-
-En el `php.ini` cargado, habilita/descomenta las extensiones necesarias, especialmente:
+En el `php.ini` activo, habilita las extensiones necesarias si están comentadas:
 
 ```ini
 extension=curl
@@ -79,98 +99,63 @@ extension=mbstring
 extension=openssl
 extension=pdo_pgsql
 extension=pgsql
-```
-
-SQLite suele ser necesario para las pruebas:
-
-```ini
 extension=pdo_sqlite
 extension=sqlite3
 ```
 
-Guarda `php.ini`, abre una PowerShell nueva y verifica:
+Guarda el archivo, abre una terminal nueva y comprueba:
 
 ```powershell
 php -m | Select-String 'pdo_pgsql|pgsql|pdo_sqlite|sqlite3'
 ```
 
-### 2. Composer
+### Composer
 
-Descarga y ejecuta el instalador oficial [Composer-Setup.exe](https://getcomposer.org/Composer-Setup.exe). Selecciona el `php.exe` que instalarás/usarás. Cierra y abre PowerShell y confirma:
+Instala [Composer-Setup.exe](https://getcomposer.org/Composer-Setup.exe). En el asistente, selecciona el `php.exe` correcto. Abre PowerShell de nuevo:
 
 ```powershell
 composer --version
 composer diagnose
 ```
 
-Composer instala las librerías PHP declaradas en `composer.json` y fija las versiones en `composer.lock`. Para esta plantilla no hace falta instalar globalmente `laravel/installer`; `composer install` descarga Laravel y sus dependencias locales en `vendor/`.
+Composer descarga las dependencias PHP de `composer.json`; `composer.lock` fija versiones reproducibles en la carpeta `vendor/`.
 
-### 3. PostgreSQL
+### PostgreSQL
 
-Instala PostgreSQL desde [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) o con winget:
+Descárgalo desde [postgresql.org/download/windows](https://www.postgresql.org/download/windows/) o búscalo con winget:
 
 ```powershell
 winget search --id PostgreSQL.PostgreSQL
 winget install --id PostgreSQL.PostgreSQL.17 -e
 ```
 
-También puedes elegir otra versión estable que aparezca en la búsqueda. En el instalador selecciona PostgreSQL Server y Command Line Tools; apunta la contraseña del usuario administrativo `postgres` que configures y el puerto (por defecto `5432`). Puedes instalar pgAdmin para administrar gráficamente las bases.
+En el instalador selecciona PostgreSQL Server y Command Line Tools. Anota la contraseña elegida para el usuario administrador `postgres` y conserva el puerto `5432` (salvo que ya esté ocupado). Opcionalmente, instala pgAdmin para administrar el servidor con interfaz gráfica.
 
-Verifica que el servicio esté iniciado (en `services.msc`, normalmente `postgresql-x64-<versión>`) y que `psql --version` funcione. Agrega al PATH la carpeta `bin` de PostgreSQL si Windows no encuentra `psql.exe`.
+Verifica que el servicio PostgreSQL esté iniciado (`services.msc`) y que funcione `psql --version`. Si `psql` no se reconoce, agrega al PATH la carpeta `bin` de la instalación PostgreSQL y abre una terminal nueva.
 
-### 4. Git, editor y Node opcional
+### Git y herramientas frontend opcionales
 
-- Instala Git for Windows para clonar el repo (también: `winget install --id Git.Git -e`).
-- VS Code es un editor práctico, pero cualquier editor sirve.
-- Node.js LTS/npm solo hacen falta si vas a modificar y compilar `resources/css` o `resources/js`. Instala Node LTS desde [nodejs.org](https://nodejs.org/); npm viene incluido.
+Git for Windows puede instalarse desde [git-scm.com](https://git-scm.com/download/win) o con `winget install --id Git.Git -e`. VS Code es opcional.
 
-También puedes usar `winget install --id OpenJS.NodeJS.LTS -e`.
+Si quieres modificar CSS/JS, instala Node.js LTS desde [nodejs.org](https://nodejs.org/) o con `winget install --id OpenJS.NodeJS.LTS -e`. Esta plantilla ya declara Vite/Tailwind 4; dentro del repo ejecuta `npm ci`, `npm run dev` o `npm run build`. No hace falta instalar Tailwind global ni ejecutar `tailwindcss init`.
 
-```powershell
-node --version
-npm --version
-```
+## Instalar PostgreSQL y crear la base
 
-Los paquetes de Vite/Tailwind ya están declarados en `package.json`. En este repo, `npm ci` instala versiones bloqueadas, `npm run dev` inicia Vite y `npm run build` compila assets. No instales Tailwind globalmente ni ejecutes `tailwindcss init`: la plantilla usa Tailwind 4 y su plugin Vite.
-
-Si agregas Tailwind a un Laravel limpio, instala `tailwindcss` y `@tailwindcss/vite` con npm, añade el plugin al `vite.config.js` e importa `@import 'tailwindcss';` en `resources/css/app.css`. Esta plantilla ya tiene esa integración lista.
-
-### Instalación de Laravel y creación de proyectos
-
-Para usar **este repositorio**, Composer instala Laravel localmente según `composer.lock`. Para crear otro proyecto desde cero puedes usar Composer:
-
-```powershell
-composer create-project laravel/laravel mi-proyecto
-cd mi-proyecto
-```
-
-O instala una vez el instalador global de Laravel:
-
-```powershell
-composer global require laravel/installer
-laravel --version
-laravel new mi-proyecto
-```
-
-Si Windows no reconoce `laravel`, agrega `%APPDATA%\Composer\vendor\bin` al PATH y abre una terminal nueva. `laravel new` pregunta opciones de starter kit, base de datos y autenticación; elige según el ejercicio. Laravel es el framework PHP y Composer administra sus dependencias.
-
-## Instalación de PostgreSQL local
-
-La plantilla **no instala PostgreSQL por ti**: usa la instancia local ya instalada. En una terminal PowerShell abre `psql` como administrador (puedes iniciar sesión como `postgres`):
+Inicia PostgreSQL desde sus servicios de Windows y abre una consola como administrador:
 
 ```powershell
 psql -U postgres -h 127.0.0.1 -p 5432
 ```
 
-Dentro del prompt de `psql` crea un usuario y base dedicados al ejercicio:
+Dentro de `psql`, crea un rol de desarrollo y su base:
 
 ```sql
-CREATE ROLE laravel WITH LOGIN PASSWORD 'elige-una-clave-local';
+CREATE ROLE laravel WITH LOGIN PASSWORD 'elige-tu-clave-local';
 CREATE DATABASE laravel_api OWNER laravel;
 \q
 ```
 
-Usa una contraseña local que recuerdes; no subas `.env` ni una contraseña real a GitHub. Si ya existen el rol o la base, no los crees de nuevo: utiliza sus credenciales o modifícalas con permisos de administrador.
+La contraseña de arriba es solo un ejemplo. Usa una clave local propia. El archivo `.env.example` trae una contraseña placeholder `secret`: **cámbiala en `.env`** para que coincida con la contraseña que configuraste en PostgreSQL. No subas `.env` ni contraseñas reales al repositorio.
 
 Prueba la conexión:
 
@@ -178,39 +163,41 @@ Prueba la conexión:
 psql -U laravel -h 127.0.0.1 -p 5432 -d laravel_api
 ```
 
-Escribe `\q` para salir. Si falla, comprueba el estado del servicio, el puerto, usuario, contraseña y firewall local.
+Si abre el prompt de `psql`, la conexión funciona. Escribe `\q` para salir.
 
-## Clonar e instalar el proyecto
+## Clonar y preparar el proyecto
 
-Desde la carpeta donde guardas tus repositorios:
+Desde la carpeta donde guardarás proyectos:
 
 ```powershell
 git clone https://github.com/Erschin1011/entrevista-laravel-api.git
 cd entrevista-laravel-api
 ```
 
-### Instalación guiada (Windows PowerShell)
+### Setup automatizado
+
+En PowerShell, el script verifica PHP, Composer y `pdo_pgsql`; instala paquetes desde `composer.lock`, crea `.env` si falta, genera `APP_KEY` si hace falta, comprueba el puerto de PostgreSQL y aplica migraciones:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 ```
 
-El script verifica PHP/Composer/`pdo_pgsql`, instala paquetes bloqueados, crea `.env` solo si falta, genera `APP_KEY` solo si está vacía, prueba el puerto PostgreSQL y aplica migraciones. Si deseas instalar sin migrar todavía:
+Si aún no creaste la base/usuario PostgreSQL, prepara las dependencias y `.env` sin migrar:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1 -SkipMigrations
 ```
 
-Después crea o modifica `.env` con el editor y ejecuta manualmente `php artisan migrate` cuando PostgreSQL esté listo.
+Después corrige `DB_PASSWORD` en `.env`, inicia PostgreSQL y corre `php artisan migrate`.
 
-### Instalación manual (Windows, macOS o Linux)
+### Setup manual
 
 ```powershell
 composer install
 Copy-Item .env.example .env
 ```
 
-En macOS/Linux usa `cp .env.example .env`. Edita `.env` y configura tu conexión local:
+En macOS/Linux, usa `cp .env.example .env`. Edita la configuración de base de datos en `.env`:
 
 ```dotenv
 DB_CONNECTION=pgsql
@@ -221,206 +208,212 @@ DB_USERNAME=laravel
 DB_PASSWORD=tu_clave_local
 ```
 
-Luego ejecuta:
+Prepara y migra:
 
 ```powershell
 php artisan key:generate
 php artisan config:clear
 php artisan migrate
-php artisan route:list
+php artisan migrate:status
 ```
 
-Si ya tenías `.env`, **no lo reemplaces**: revisa o ajusta solo las variables `DB_*`. La base configurada debe existir antes de `migrate`.
+Si `.env` ya existe, **no lo reemplaces**; ajusta las variables necesarias. `migrate` crea tablas; `migrate:status` confirma qué migraciones corrieron.
 
 ## Iniciar y detener
 
-Desde la raíz del proyecto:
+Desde la raíz del repo, deja PostgreSQL iniciado y ejecuta:
 
 ```powershell
 php artisan serve
 ```
 
-Abre [http://127.0.0.1:8000](http://127.0.0.1:8000). La página `/` muestra los posts. Para detener el servidor usa `Ctrl+C`.
+Laravel muestra la URL local, normalmente [http://127.0.0.1:8000](http://127.0.0.1:8000). La página `/` es Blade/MVC y muestra una cuenta del total de posts. Para apagar el servidor usa `Ctrl+C`.
 
-PostgreSQL también debe seguir ejecutándose durante el uso normal. No es necesario iniciar `npm run dev` para este CRUD; solo para desarrollar assets frontend.
-
-## API CRUD de ejemplo
-
-Base local: `http://127.0.0.1:8000`. Para solicitudes POST, PUT o PATCH envía `Content-Type: application/json` y `Accept: application/json`.
-
-### 1. Leer/listar todos (paginado)
+Para assets opcionales, abre otra terminal en el mismo proyecto:
 
 ```powershell
-curl.exe http://127.0.0.1:8000/api/posts
+npm ci
+npm run dev
 ```
 
-### 2. Agregar (crear)
+Detén Vite también con `Ctrl+C`. Para compilar assets de producción ejecuta `npm run build`.
+
+## Probar la interfaz MVC
+
+1. Abre `http://127.0.0.1:8000` para cargar la vista de bienvenida.
+2. Confirma que la página responde incluso cuando todavía no hay posts.
+3. Crea un post desde `POST /api/posts` como se muestra abajo.
+4. Recarga `/`: Blade consulta Eloquent y muestra el post guardado.
+5. Para personalizar esa página, edita `resources/views/welcome.blade.php`.
+
+Laravel envía el HTML renderizado desde Blade; no hay una SPA ni Vue en este repo. Los estilos globales de Laravel/Tailwind provienen de `resources/css/app.css` y Vite.
+
+## Probar la API REST
+
+URL base: `http://127.0.0.1:8000`. Con Postman/Insomnia usa JSON raw. Las peticiones de escritura deben incluir `Content-Type: application/json` y es conveniente añadir `Accept: application/json`.
+
+### Leer todos (paginación de 10)
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:8000/api/posts -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Primer post","body":"Contenido de ejemplo"}'
+curl.exe -i http://127.0.0.1:8000/api/posts
 ```
 
-La respuesta exitosa es HTTP **201**.
-
-### 3. Leer uno por ID
+### Agregar
 
 ```powershell
-curl.exe http://127.0.0.1:8000/api/posts/1
+curl.exe -i -X POST http://127.0.0.1:8000/api/posts -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Primer post","body":"Contenido de ejemplo"}'
 ```
 
-### 4. Editar parcialmente con PATCH
+Esperado: HTTP `201`. La respuesta tiene forma `{ "data": { "id": ..., "title": ..., "body": ... } }`.
+
+### Leer uno
 
 ```powershell
-curl.exe -X PATCH http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título actualizado"}'
+curl.exe -i http://127.0.0.1:8000/api/posts/1 -H "Accept: application/json"
 ```
 
-### 5. Editar con PUT
-
-PUT envía todos los campos editables y reemplaza los valores actuales:
+### Editar parcialmente
 
 ```powershell
-curl.exe -X PUT http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título completo","body":"Contenido completo"}'
+curl.exe -i -X PATCH http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título actualizado"}'
 ```
 
-### 6. Eliminar
+### Reemplazar los campos editables
 
 ```powershell
-curl.exe -X DELETE http://127.0.0.1:8000/api/posts/1 -H "Accept: application/json"
+curl.exe -i -X PUT http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título completo","body":"Contenido completo"}'
 ```
 
-Si prefieres Postman/Insomnia, crea las mismas solicitudes y usa JSON raw. Validación incorrecta responde **422**, ID inexistente **404**, creación **201**, lectura/edición **200**, eliminación **204**.
+### Eliminar
 
-### Cómo llega cada endpoint al controlador
+```powershell
+curl.exe -i -X DELETE http://127.0.0.1:8000/api/posts/1 -H "Accept: application/json"
+```
 
-En `routes/api.php` se registra el recurso REST:
+Esperado: HTTP `204` sin cuerpo. Al pedir un ID inexistente obtienes `404`; con título/body ausentes o inválidos, `422` y detalle de validación JSON.
+
+### Contrato REST y flujo del código
+
+`routes/api.php` declara `Route::apiResource('posts', PostController::class)`. Esta instrucción crea cinco rutas:
+
+| Método HTTP | Ruta | Método del controlador | Acción |
+|---|---|---|---|
+| GET | `/api/posts` | `index()` | Lista paginada |
+| POST | `/api/posts` | `store()` | Valida y agrega |
+| GET | `/api/posts/{post}` | `show()` | Lee un registro |
+| PUT/PATCH | `/api/posts/{post}` | `update()` | Edita el registro |
+| DELETE | `/api/posts/{post}` | `destroy()` | Elimina |
+
+`Post $post` usa implicit route model binding: Laravel busca el ID de la URL y responde `404` cuando no existe. `PostResource` controla las claves JSON públicas. El modelo `Post` usa Eloquent y `$fillable` limita la asignación masiva a `title` y `body`.
+
+## Pruebas
+
+Las pruebas automatizadas configuran `DB_CONNECTION=sqlite` y `DB_DATABASE=:memory:` en `phpunit.xml`, por lo que puedes probar la lógica sin servidor PostgreSQL:
+
+```powershell
+php artisan test --compact
+```
+
+El test `tests/Feature/PostApiTest.php` cubre validación, creación, lectura, edición, borrado y respuesta 404. No ejecuta requests reales por red; usa las pruebas HTTP integradas de Laravel.
+
+## Convertir el starter en otro CRUD
+
+Usa `Post` como patrón y reemplázalo por la entidad que pida la consigna (por ejemplo `Task`, `Customer`, `Book`). Pasos:
+
+### 1. Crear modelo, migración y controlador
+
+Ejemplo para `Category`:
+
+```powershell
+php artisan make:model Category -m
+php artisan make:controller CategoryController --api
+```
+
+O crea modelos/controladores resource desde `php artisan make:model --help`. Si la nueva tabla tiene columnas distintas, edita la migración nueva en `database/migrations/` antes de ejecutarla.
+
+Ejemplo de columnas de una tabla sencilla:
 
 ```php
-Route::apiResource('posts', PostController::class);
+Schema::create('categories', function (Blueprint $table) {
+    $table->id();
+    $table->string('name', 120);
+    $table->text('description')->nullable();
+    $table->timestamps();
+});
 ```
 
-Laravel conecta cada verbo con un método del controlador:
-
-| HTTP | Método | Acción |
-|---|---|---|
-| `GET /api/posts` | `index()` | Leer una colección paginada con Eloquent. |
-| `POST /api/posts` | `store()` | Validar y agregar un post; devuelve 201. |
-| `GET /api/posts/{post}` | `show(Post $post)` | Leer uno; route model binding lo busca o da 404. |
-| `PUT/PATCH /api/posts/{post}` | `update()` | Validar y editar todos/algunos campos. |
-| `DELETE /api/posts/{post}` | `destroy()` | Eliminar y responder 204 sin contenido. |
-
-`PostResource` define explícitamente las claves del JSON. `Post::$fillable` limita la asignación masiva. Las reglas en `PostController` rechazan datos inválidos con 422.
-
-## Comandos cotidianos
+Luego aplica solo las nuevas migraciones pendientes:
 
 ```powershell
-php artisan route:list                    # rutas y nombres
-php artisan route:list --path=api         # filtrar rutas API
-php artisan migrate:status                # estado de migraciones
-php artisan migrate                       # aplicar migraciones pendientes
-php artisan migrate:rollback              # revertir último lote (cuidado)
-php artisan make:model Comment -mcr       # modelo + migración + resource controller
-php artisan make:request StorePostRequest # clase de validación
-php artisan make:controller PostController --api
-php artisan test --compact                # ejecutar pruebas
-vendor/bin/pint                            # formatear PHP
-php artisan config:clear                   # limpiar config cache
-php artisan optimize:clear                 # limpiar caches Laravel
-composer install                           # restaurar paquetes desde lock
-composer update                            # actualizar versiones; normalmente no durante la entrevista
+php artisan migrate
 ```
 
-`migrate:fresh` elimina todas las tablas y datos: úsalo solo en una base de desarrollo desechable. Nunca lo ejecutes sobre una base con datos que quieras conservar.
+### 2. Permitir asignación en el modelo
 
-## PHP Artisan: comandos útiles
+En `app/Models/Category.php` define únicamente los campos que sí pueden venir del formulario/API:
 
-`php artisan` es la CLI que viene con Laravel. Ejecútala desde la raíz del proyecto, donde está el archivo `artisan`.
+```php
+protected $fillable = ['name', 'description'];
+```
 
-### Descubrir y ejecutar
+No añadas `id` o campos internos que el usuario no debería modificar.
+
+### 3. Añadir validación y métodos CRUD
+
+`PostController` ya es un ejemplo funcional:
+
+- `index`: `Model::query()->latest()->paginate(10)`.
+- `store`: `$request->validate(...)`, luego `Model::create($validated)` y HTTP 201.
+- `show`: recibe `Post $post`; binding devuelve 404 automáticamente.
+- `update`: valida campos `sometimes` y llama `$post->update(...)`.
+- `destroy`: elimina y responde HTTP 204.
+
+Para `Category`, adapta las reglas, por ejemplo `name => ['required', 'string', 'max:120']`. Si la validación crece, crea un Form Request con `php artisan make:request StoreCategoryRequest`.
+
+### 4. Registrar sus rutas API
+
+En `routes/api.php`:
+
+```php
+use App\Http\Controllers\CategoryController;
+use Illuminate\Support\Facades\Route;
+
+Route::apiResource('categories', CategoryController::class);
+```
+
+Inspecciona las rutas creadas:
 
 ```powershell
-php artisan list                         # lista todos los comandos disponibles
-php artisan help migrate                 # ayuda de un comando
-php artisan about                        # resumen de entorno, framework y paquetes
-php artisan --version                    # versión de Laravel
-php artisan route:list                   # inspeccionar rutas
-php artisan route:list --path=api        # filtrar rutas por URL
-php artisan route:list --name=posts      # filtrar por nombre de ruta
+php artisan route:list --path=api/categories
 ```
 
-### Generar código
+### 5. Devolver respuestas API consistentes
 
-```powershell
-php artisan make:model Product -m       # modelo y migración
-php artisan make:model Product -mcr     # modelo, migración, controlador resource
-php artisan make:controller ProductController --api
-php artisan make:controller ProductController --resource
-php artisan make:migration add_price_to_products_table
-php artisan make:request StoreProductRequest
-php artisan make:seeder ProductSeeder
-php artisan make:factory ProductFactory --model=Product
-php artisan make:test ProductApiTest
-php artisan make:test ProductRulesTest --unit
-```
+Para un CRUD real, crea `CategoryResource` con `php artisan make:resource CategoryResource` y define campos JSON explícitos, igual que `app/Http/Resources/PostResource.php`. Devuelve `CategoryResource::collection(...)` desde el listado y un `CategoryResource` desde `show/store/update`.
 
-Opciones comunes: `--no-interaction` para evitar preguntas, `--force` para reemplazar archivos generados si el comando lo permite. Lee `php artisan make:model --help` o `php artisan help make:controller` para las opciones exactas.
+### 6. Conectar una interfaz Blade
 
-### Base de datos, caché y depuración
+Una API JSON y una interfaz Blade son dos formas distintas de presentar la misma lógica. Para páginas HTML:
 
-```powershell
-php artisan migrate                    # aplicar migraciones pendientes
-php artisan migrate:status             # ver cuáles corrieron
-php artisan migrate:rollback           # revertir último lote
-php artisan migrate:rollback --step=1  # revertir un paso
-php artisan migrate:fresh              # BORRA todas las tablas; solo base desechable
-php artisan db:seed                    # ejecutar DatabaseSeeder
-php artisan db:show                    # información de conexión/esquema
-php artisan config:show database       # inspeccionar configuración de DB
-php artisan config:clear               # limpiar caché de configuración
-php artisan cache:clear                # vaciar caché de aplicación
-php artisan view:clear                 # limpiar vistas compiladas
-php artisan optimize:clear             # limpiar cachés de Laravel
-php artisan test --compact             # ejecutar PHPUnit en formato corto
-vendor/bin/pint                        # formatear código PHP
-```
+1. Añade rutas en `routes/web.php`.
+2. Crea vistas en `resources/views/categories/` que extiendan `layouts.app`.
+3. En formularios incluye `@csrf`; para actualizar/eliminar usa `@method('PUT')` o `@method('DELETE')` con formulario POST.
+4. El controlador web retorna `view(...)` o redirige; puedes reutilizar el mismo modelo y validaciones.
 
-### Servidores y utilidades locales
+Para una interfaz Vue, React o móvil, consume `/api/categories` desde JavaScript y conserva los endpoints API.
 
-```powershell
-php artisan serve                       # servidor local, normalmente puerto 8000
-php artisan serve --host=127.0.0.1 --port=8080
-php artisan tinker                      # consola interactiva de Laravel
-php artisan tinker --execute='App\Models\Post::count();'
-php artisan storage:link                # enlace public/storage si se usa storage público
-php artisan route:clear                 # borrar caché de rutas
-```
+## Problemas frecuentes
 
-Para detener un comando de servidor o Tinker: `Ctrl+C` o `exit` en Tinker. Para explorar cualquier otro comando, `php artisan list` y `php artisan help <comando>` son la referencia más directa.
-
-## Cómo ampliar el CRUD
-
-Ejemplo de ciclo:
-
-1. Diseña los campos y crea migración/modelo: `php artisan make:model Comment -mcr`.
-2. Define columnas en `database/migrations/...` y aplica `php artisan migrate`.
-3. Añade campos permitidos en `$fillable` del modelo.
-4. Define reglas de validación en los métodos del controlador o en un Form Request.
-5. Usa `Route::apiResource('comments', CommentController::class)` en `routes/api.php`.
-6. Prueba GET/POST/PATCH/DELETE y errores 404/422 desde Postman o pruebas Feature.
-
-Si el ejercicio pide una página HTML tradicional, crea vista Blade y ruta web en vez de devolver JSON. La tabla `posts` de este starter tiene `id`, `title`, `body`, `created_at`, `updated_at`.
-
-## Solución de problemas
-
-| Mensaje | Qué revisar |
+| Error | Revisar |
 |---|---|
-| `php` no se reconoce | Agrega el directorio de PHP al PATH y abre una terminal nueva. Confirma `where.exe php`. |
-| `could not find driver` / `could not find driver (pgsql)` | Habilita `extension=pdo_pgsql` en el `php.ini` indicado por `php --ini`; reabre terminal y verifica `php -m`. |
-| `connection refused` a 127.0.0.1:5432 | Inicia PostgreSQL y confirma puerto/host con `Test-NetConnection 127.0.0.1 -Port 5432`. |
-| `password authentication failed` | Ajusta `DB_USERNAME`/`DB_PASSWORD` en `.env`; prueba con `psql` usando las mismas credenciales. |
-| `database does not exist` | Crea `laravel_api` en PostgreSQL o corrige `DB_DATABASE`. |
-| `relation "posts" does not exist` | Ejecuta `php artisan migrate` contra la base correcta y revisa el estado con `migrate:status`. |
-| La configuración antigua sigue cargada | Ejecuta `php artisan config:clear`; verifica `.env` y `config:show database.default`. |
-| Puerto 5432 ocupado | Mira qué servicio lo ocupa; configura PostgreSQL y `.env` con otro puerto si hace falta. |
-| Error 422 | Revisa el JSON de respuesta; `title` y `body` son requeridos y deben ser strings. |
+| `php` no se reconoce | PATH; comprueba `where.exe php` y abre una terminal nueva. |
+| `could not find driver` en PostgreSQL | Habilita `extension=pdo_pgsql` en el `php.ini` mostrado por `php --ini`, luego confirma con `php -m`. |
+| `connection refused` a `127.0.0.1:5432` | Inicia el servicio PostgreSQL y prueba `Test-NetConnection 127.0.0.1 -Port 5432`. |
+| `password authentication failed` | Revisa host, base, usuario y contraseña en `.env`; prueba esas mismas credenciales con `psql`. |
+| `database does not exist` | Crea `laravel_api` en PostgreSQL o actualiza `DB_DATABASE`. |
+| `relation "posts" does not exist` | Ejecuta `php artisan migrate` y verifica que `DB_*` apunten a la base correcta. |
+| HTTP 422 | Lee `errors` en el JSON; `title` y `body` son obligatorios en este ejemplo. |
+| HTTP 404 | Comprueba el ID y la ruta mostrada por `php artisan route:list`. |
+| Vite no encuentra manifest | Ejecuta `npm ci` y `npm run build`, o deja `npm run dev` ejecutándose. |
 
-Logs de Laravel: `storage/logs/laravel.log`. No publiques el `.env`; solo se versiona `.env.example`.
+Logs: `storage/logs/laravel.log`. Nunca publiques `.env`; solo `.env.example` debe estar en GitHub.
