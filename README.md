@@ -5,7 +5,7 @@ Laravel 12 starter with PHP 8.2+, Eloquent ORM, migrations, PostgreSQL, a Blade 
 ## Requirements
 
 - PHP 8.2+ and Composer
-- PostgreSQL 14+ or Docker Desktop with Docker Compose
+- PostgreSQL 14+ installed and running locally
 - PHP's `pdo_pgsql` extension enabled
 - Node.js 20+ and npm (only needed to build assets; the starter has no frontend dependency)
 
@@ -15,12 +15,18 @@ Laravel 12 starter with PHP 8.2+, Eloquent ORM, migrations, PostgreSQL, a Blade 
 composer install
 copy .env.example .env        # Windows PowerShell; on macOS/Linux use cp .env.example .env
 php artisan key:generate
-docker compose up -d db       # skip if PostgreSQL is already running locally
 php artisan migrate
 php artisan serve
 ```
 
-Open `http://127.0.0.1:8000`. PostgreSQL is configured by default. Docker Compose creates database `laravel_api`, user `laravel`, password `secret`, on port `5432`. If your `.env` already exists, keep your local settings and do not overwrite it. For a local PostgreSQL installation, create a database/user or edit the `DB_*` values in `.env`.
+Before running migrations, start the PostgreSQL service and create a local database and user. For example, in `psql` as a PostgreSQL administrator:
+
+```sql
+CREATE USER laravel WITH PASSWORD 'secret';
+CREATE DATABASE laravel_api OWNER laravel;
+```
+
+The `.env.example` defaults match these values (`127.0.0.1:5432`, database `laravel_api`). Change `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` and `DB_PASSWORD` in `.env` to match your local installation. Open `http://127.0.0.1:8000` after `php artisan serve`. If your `.env` already exists, keep your local settings and do not overwrite it.
 
 Run the automated tests separately with `php artisan test`; they use in-memory SQLite so PostgreSQL is not required just to run tests.
 
