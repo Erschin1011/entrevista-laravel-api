@@ -19,17 +19,18 @@ Base pequeña y funcional para resolver un ejercicio técnico con **Laravel 12**
 
 ## Qué trae
 
-- `GET /api/posts`: listar posts paginados.
-- `POST /api/posts`: crear un post validado.
-- `GET /api/posts/{post}`: consultar un post (route model binding).
-- `PATCH /api/posts/{post}`: actualizar parcialmente.
-- `DELETE /api/posts/{post}`: eliminar.
+- `GET /api/posts`: leer/listar posts paginados.
+- `POST /api/posts`: agregar un post validado.
+- `GET /api/posts/{post}`: leer un post por ID (route model binding).
+- `PUT/PATCH /api/posts/{post}`: editar un post.
+- `DELETE /api/posts/{post}`: eliminar un post.
 - Errores de validación en JSON con HTTP 422.
+- `PostResource` define explícitamente la representación JSON.
 - PostgreSQL como conexión predeterminada para el proyecto.
 - Vista Blade en `/` que muestra los posts.
 - Pruebas automatizadas que usan SQLite en memoria; **no necesitan tener PostgreSQL activo**.
 
-Archivos centrales: `routes/api.php`, `routes/web.php`, `app/Http/Controllers/PostController.php`, `app/Models/Post.php`, `database/migrations/` y `resources/views/`.
+Archivos centrales: `routes/api.php`, `routes/web.php`, `app/Http/Controllers/PostController.php`, `app/Http/Resources/PostResource.php`, `app/Models/Post.php`, `database/migrations/` y `resources/views/`.
 
 ## Requisitos
 
@@ -245,15 +246,15 @@ PostgreSQL también debe seguir ejecutándose durante el uso normal. No es neces
 
 ## API CRUD de ejemplo
 
-Base local: `http://127.0.0.1:8000`. Para solicitudes POST/PATCH envía `Content-Type: application/json` y `Accept: application/json`.
+Base local: `http://127.0.0.1:8000`. Para solicitudes POST, PUT o PATCH envía `Content-Type: application/json` y `Accept: application/json`.
 
-### Listar
+### 1. Leer/listar todos (paginado)
 
 ```powershell
 curl.exe http://127.0.0.1:8000/api/posts
 ```
 
-### Crear
+### 2. Agregar (crear)
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:8000/api/posts -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Primer post","body":"Contenido de ejemplo"}'
@@ -261,25 +262,53 @@ curl.exe -X POST http://127.0.0.1:8000/api/posts -H "Content-Type: application/j
 
 La respuesta exitosa es HTTP **201**.
 
-### Consultar uno
+### 3. Leer uno por ID
 
 ```powershell
 curl.exe http://127.0.0.1:8000/api/posts/1
 ```
 
-### Actualizar parcialmente
+### 4. Editar parcialmente con PATCH
 
 ```powershell
 curl.exe -X PATCH http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título actualizado"}'
 ```
 
-### Eliminar
+### 5. Editar con PUT
+
+PUT envía todos los campos editables y reemplaza los valores actuales:
+
+```powershell
+curl.exe -X PUT http://127.0.0.1:8000/api/posts/1 -H "Content-Type: application/json" -H "Accept: application/json" -d '{"title":"Título completo","body":"Contenido completo"}'
+```
+
+### 6. Eliminar
 
 ```powershell
 curl.exe -X DELETE http://127.0.0.1:8000/api/posts/1 -H "Accept: application/json"
 ```
 
-Si prefieres Postman/Insomnia, crea las mismas solicitudes y usa JSON raw. Validación incorrecta responde **422**, ID inexistente **404**, creación **201**, eliminación **204**.
+Si prefieres Postman/Insomnia, crea las mismas solicitudes y usa JSON raw. Validación incorrecta responde **422**, ID inexistente **404**, creación **201**, lectura/edición **200**, eliminación **204**.
+
+### Cómo llega cada endpoint al controlador
+
+En `routes/api.php` se registra el recurso REST:
+
+```php
+Route::apiResource('posts', PostController::class);
+```
+
+Laravel conecta cada verbo con un método del controlador:
+
+| HTTP | Método | Acción |
+|---|---|---|
+| `GET /api/posts` | `index()` | Leer una colección paginada con Eloquent. |
+| `POST /api/posts` | `store()` | Validar y agregar un post; devuelve 201. |
+| `GET /api/posts/{post}` | `show(Post $post)` | Leer uno; route model binding lo busca o da 404. |
+| `PUT/PATCH /api/posts/{post}` | `update()` | Validar y editar todos/algunos campos. |
+| `DELETE /api/posts/{post}` | `destroy()` | Eliminar y responder 204 sin contenido. |
+
+`PostResource` define explícitamente las claves del JSON. `Post::$fillable` limita la asignación masiva. Las reglas en `PostController` rechazan datos inválidos con 422.
 
 ## Comandos cotidianos
 

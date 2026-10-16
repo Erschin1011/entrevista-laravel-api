@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PostResource;
 use App\Models\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class PostController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(): AnonymousResourceCollection
     {
-        return response()->json(Post::query()->latest()->paginate(10));
+        return PostResource::collection(Post::query()->latest()->paginate(10));
     }
 
     public function store(Request $request): JsonResponse
@@ -20,28 +23,30 @@ class PostController extends Controller
             'body' => ['required', 'string'],
         ]));
 
-        return response()->json($post, 201);
+        return (new PostResource($post))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function show(Post $post): JsonResponse
+    public function show(Post $post): PostResource
     {
-        return response()->json($post);
+        return new PostResource($post);
     }
 
-    public function update(Request $request, Post $post): JsonResponse
+    public function update(Request $request, Post $post): PostResource
     {
         $post->update($request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'body' => ['sometimes', 'required', 'string'],
         ]));
 
-        return response()->json($post->refresh());
+        return new PostResource($post->refresh());
     }
 
-    public function destroy(Post $post): JsonResponse
+    public function destroy(Post $post): Response
     {
         $post->delete();
 
-        return response()->json(status: 204);
+        return response()->noContent();
     }
 }

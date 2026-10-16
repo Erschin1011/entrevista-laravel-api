@@ -17,17 +17,17 @@ class PostApiTest extends TestCase
             'title' => 'First post',
             'body' => 'Post body',
         ])->assertCreated()
-            ->assertJsonPath('title', 'First post');
+            ->assertJsonPath('data.title', 'First post');
 
         $postId = (int) $this->getJson('/api/posts')->assertOk()->json('data.0.id');
 
         $this->getJson("/api/posts/{$postId}")
             ->assertOk()
-            ->assertJsonPath('body', 'Post body');
+            ->assertJsonPath('data.body', 'Post body');
 
         $this->patchJson("/api/posts/{$postId}", ['title' => 'Updated post'])
             ->assertOk()
-            ->assertJsonPath('title', 'Updated post');
+            ->assertJsonPath('data.title', 'Updated post');
 
         $this->deleteJson("/api/posts/{$postId}")->assertNoContent();
         $this->getJson("/api/posts/{$postId}")->assertNotFound();
